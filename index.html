@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kultforge</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/kultforge.css">
+<style>
+.home-body {
+  min-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+.home-hero {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.home-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.home-logo span { color: var(--orange); }
+.home-sub {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 860px;
+}
+.tool-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.tool-card:hover {
+  border-color: var(--orange);
+  background: rgba(232,114,26,0.04);
+}
+.tool-card-num {
+  font-size: 11px;
+  color: var(--muted2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.tool-card-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--orange);
+}
+.tool-card-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  flex: 1;
+}
+.tool-card-link {
+  font-size: 12px;
+  color: var(--orange);
+  font-weight: 500;
+  margin-top: 4px;
+}
+.pipeline-hint {
+  margin-top: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted2);
+}
+.pipeline-arrow { color: var(--muted2); font-size: 14px; }
+</style>
+</head>
+<body>
+<nav class="kf-nav">
+  <a href="index.html" class="kf-nav-logo"><span>KULT</span>FORGE</a>
+  <div class="kf-nav-links">
+    <a href="scanner.html" class="kf-nav-link" id="nav-scanner">Scanner</a>
+    <a href="design.html" class="kf-nav-link" id="nav-design">Design</a>
+    <a href="video.html" class="kf-nav-link" id="nav-video">Video</a>
+  </div>
+</nav>
+
+<div class="home-body">
+  <div class="home-hero">
+    <div class="home-logo"><span>KULT</span>FORGE</div>
+    <div class="home-sub">AI merch pipeline — trend to video in three steps</div>
+  </div>
+
+  <div class="tool-grid">
+    <a href="scanner.html" class="tool-card">
+      <div class="tool-card-num">Step 01</div>
+      <div class="tool-card-name">Scanner</div>
+      <div class="tool-card-desc">Pull today's viral trends from your Google Sheet. Claude scores each one for merch potential and IP risk, so you only act on what's worth it.</div>
+      <div class="tool-card-link">Open Scanner &rarr;</div>
+    </a>
+    <a href="design.html" class="tool-card">
+      <div class="tool-card-num">Step 02</div>
+      <div class="tool-card-name">Design</div>
+      <div class="tool-card-desc">Enter a trend name and Claude runs the full content pipeline — product decision, Ideogram prompt, Etsy listing, and social captions in one shot.</div>
+      <div class="tool-card-link">Open Design &rarr;</div>
+    </a>
+    <a href="video.html" class="tool-card">
+      <div class="tool-card-num">Step 03</div>
+      <div class="tool-card-name">Video</div>
+      <div class="tool-card-desc">Upload your pipeline file and Ideogram design. Claude generates a full video production package — storyboards, scripts, and CapCut instructions.</div>
+      <div class="tool-card-link">Open Video &rarr;</div>
+    </a>
+  </div>
+
+  <div class="pipeline-hint">
+    <span>Scanner</span>
+    <span class="pipeline-arrow">&#8594;</span>
+    <span>copy trend name</span>
+    <span class="pipeline-arrow">&#8594;</span>
+    <span>Design</span>
+    <span class="pipeline-arrow">&#8594;</span>
+    <span>download .txt + Ideogram image</span>
+    <span class="pipeline-arrow">&#8594;</span>
+    <span>Video</span>
+  </div>
+</div>
+</body>
+</html>
