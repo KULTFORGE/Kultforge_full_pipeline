@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kultforge — Video Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/kultforge.css">
+<style>
+/* Video-specific */
+.upload-zone { width:100%; border:1px dashed var(--border2); border-radius:8px; padding:16px 12px; text-align:center; cursor:pointer; transition:all 0.15s; margin-bottom:8px; position:relative; }
+.upload-zone:hover { border-color:var(--orange); background:rgba(232,114,26,0.04); }
+.upload-zone.has-file { border-style:solid; border-color:var(--green); background:var(--green-bg); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-icon { font-size:20px; margin-bottom:6px; opacity:0.5; }
+.upload-label { font-size:12px; color:var(--muted); line-height:1.4; }
+.upload-label.done { color:var(--green); }
+.upload-label strong { color:var(--text); display:block; margin-top:2px; font-size:11px; }
+.design-preview { width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border); margin-bottom:8px; display:none; }
+.design-preview img { width:100%; display:block; }
+.parsed-box { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:8px; display:none; }
+.parsed-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:12px; }
+.parsed-row:last-child { margin-bottom:0; }
+.parsed-key { color:var(--muted2); }
+.parsed-val { color:var(--text); font-weight:500; text-align:right; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.brief-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px; }
+.brief-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.brief-card.full { grid-column:1/-1; }
+.bc-label { font-size:10px; color:var(--muted2); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px; }
+.bc-value { font-size:13px; color:var(--text); line-height:1.5; }
+.bc-value.orange { color:var(--orange); font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; }
+.storyboard { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; padding:16px; }
+.shot { background:var(--surface2); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.shot-screen { background:#000; aspect-ratio:9/16; position:relative; display:flex; align-items:center; justify-content:center; max-height:140px; overflow:hidden; }
+.shot-screen img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
+.shot-overlay { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; padding:8px; }
+.shot-time { font-size:9px; background:rgba(232,114,26,0.85); color:#fff; padding:2px 6px; border-radius:3px; align-self:flex-start; font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:0.06em; }
+.shot-text-overlay { font-size:9px; font-weight:700; color:#fff; text-align:center; text-shadow:0 1px 4px rgba(0,0,0,0.9); font-family:'Barlow Condensed',sans-serif; letter-spacing:0.04em; line-height:1.2; background:rgba(0,0,0,0.5); padding:4px 6px; border-radius:3px; }
+.shot-info { padding:8px 10px; }
+.shot-num { font-size:10px; color:var(--muted); margin-bottom:3px; }
+.shot-desc { font-size:11px; color:var(--text); line-height:1.4; }
+.shot-action { font-size:10px; color:var(--orange); margin-top:3px; }
+</style>
+</head>
+<body>
+<nav class="kf-nav">
+  <a href="index.html" class="kf-nav-logo"><span>KULT</span>FORGE</a>
+  <div class="kf-nav-links">
+    <a href="scanner.html" class="kf-nav-link" id="nav-scanner">Scanner</a>
+    <a href="design.html" class="kf-nav-link" id="nav-design">Design</a>
+    <a href="video.html" class="kf-nav-link" id="nav-video">Video</a>
+  </div>
+</nav>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span>KULT</span>FORGE</div>
+    <div class="logo-sub">Video Pipeline</div>
+    <div class="s-label">Step 1 — Pipeline file</div>
+    <div class="upload-zone" id="txtZone">
+      <input type="file" accept=".txt" id="txtFile" onchange="loadTxtFile(this)">
+      <div class="upload-icon">&#x1F4C4;</div>
+      <div class="upload-label" id="txtLabel">Click to upload pipeline .txt file<strong>kultforge-pipeline-*.txt</strong></div>
+    </div>
+    <div class="s-label">Step 2 — Your design image</div>
+    <div class="upload-zone" id="imgZone">
+      <input type="file" accept="image/*" id="imgFile" onchange="loadImgFile(this)">
+      <div class="upload-icon">&#x1F5BC;</div>
+      <div class="upload-label" id="imgLabel">Click to upload Ideogram design<strong>PNG or JPG from Ideogram</strong></div>
+    </div>
+    <div class="design-preview" id="designPreview"><img id="designImg" src="" alt="Design preview"></div>
+    <div class="parsed-box" id="parsedBox">
+      <div class="parsed-row"><span class="parsed-key">Trend</span><span class="parsed-val" id="p-trend">—</span></div>
+      <div class="parsed-row"><span class="parsed-key">Product</span><span class="parsed-val" id="p-product">—</span></div>
+      <div class="parsed-row"><span class="parsed-key">Price</span><span class="parsed-val" id="p-price">—</span></div>
+      <div class="parsed-row"><span class="parsed-key">Window</span><span class="parsed-val" id="p-window">—</span></div>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="runVideoPipeline()" disabled>Run video pipeline</button>
+    <div class="prog-wrap"><div class="prog-bar" id="pbar"></div></div>
+    <div class="step-list">
+      <div class="step-item"><div class="step-icon" id="si-0">1</div><div class="step-name" id="sn-0">Video brief</div></div>
+      <div class="step-item"><div class="step-icon" id="si-1">2</div><div class="step-name" id="sn-1">Storyboards (A+B)</div></div>
+      <div class="step-item"><div class="step-icon" id="si-2">3</div><div class="step-name" id="sn-2">Text overlay script</div></div>
+      <div class="step-item"><div class="step-icon" id="si-3">4</div><div class="step-name" id="sn-3">Voiceover script</div></div>
+      <div class="step-item"><div class="step-icon" id="si-4">5</div><div class="step-name" id="sn-4">CapCut instructions</div></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topTitle">Video Pipeline</div>
+      <div class="topbar-status" id="topStatus">Upload your pipeline file and design to begin</div>
+    </div>
+    <div class="output-area" id="outputArea">
+      <div class="empty">
+        <div class="empty-icon">&#x25A6;</div>
+        <div class="empty-title">Upload your files to start</div>
+        <div class="empty-sub">Upload the .txt file from the Content Pipeline and your Ideogram design image. Claude generates a complete video production package for TikTok and Instagram.</div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="assets/api.js"></script>
+<script>
+var pipelineData = null;
+var designBase64 = null;
+var designMime   = null;
+var videoResult  = {};
+var rawR2a = "", rawR2b = "";
+
+function checkReady() {
+  var ready = pipelineData && designBase64;
+  document.getElementById("runBtn").disabled = !ready;
+  if (ready) document.getElementById("topStatus").textContent = "Ready — hit Run video pipeline";
+}
+
+function loadTxtFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    pipelineData = parsePipelineFile(text);
+    if (!pipelineData) {
+      alert("Could not read this file. Make sure it is a Kultforge pipeline .txt file.");
+      return;
+    }
+    document.getElementById("txtZone").classList.add("has-file");
+    document.getElementById("txtLabel").className = "upload-label done";
+    document.getElementById("txtLabel").innerHTML = "Pipeline file loaded<strong>" + file.name + "</strong>";
+    document.getElementById("p-trend").textContent   = pipelineData.trend   || "\u2014";
+    document.getElementById("p-product").textContent = pipelineData.product || "\u2014";
+    document.getElementById("p-price").textContent   = pipelineData.price   || "\u2014";
+    document.getElementById("p-window").textContent  = pipelineData.window  || "\u2014";
+    document.getElementById("parsedBox").style.display = "block";
+    document.getElementById("topTitle").textContent = pipelineData.trend || "Video Pipeline";
+    checkReady();
+  };
+  reader.readAsText(file);
+}
+
+function loadImgFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  designMime = file.type || "image/png";
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    designBase64 = dataUrl.split(",")[1];
+    document.getElementById("imgZone").classList.add("has-file");
+    document.getElementById("imgLabel").className = "upload-label done";
+    document.getElementById("imgLabel").innerHTML = "Design image loaded<strong>" + file.name + "</strong>";
+    document.getElementById("designImg").src = dataUrl;
+    document.getElementById("designPreview").style.display = "block";
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+}
+
+function parsePipelineFile(text) {
+  var getField = function(key) {
+    var m = text.match(new RegExp(key + ":\\s*(.+)", "i"));
+    return m ? m[1].trim() : "";
+  };
+  var getSection = function(header) {
+    var escaped = header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var m = text.match(new RegExp("={10,}\\n" + escaped + "\\n={10,}\\n([\\s\\S]*?)(?=\\n={10,}|$)", "i"));
+    return m ? m[1].trim() : "";
+  };
+  var trend = getField("Trend");
+  if (!trend) return null;
+  return {
+    trend:    trend,
+    source:   getField("Source"),
+    product:  getField("Product"),
+    price:    getField("Sell price"),
+    window:   getField("Act window"),
+    risk:     getField("IP risk"),
+    reason:   getField("Reason"),
+    ideogram: getSection("STEP 2 \u2014 IDEOGRAM PROMPT"),
+    etsy:     getSection("STEP 3 \u2014 ETSY LISTING"),
+    captions: getSection("STEP 4 \u2014 SOCIAL CAPTIONS"),
+    rawText:  text
+  };
+}
+
+function buildTextMsg(text) { return {role: "user", content: text}; }
+function buildImageMsg(text) {
+  return {role: "user", content: [
+    {type: "image", source: {type: "base64", media_type: designMime, data: designBase64}},
+    {type: "text", text: text}
+  ]};
+}
+
+function fillBrief(id, title, badge, bc, text) {
+  var el = document.getElementById("block-" + id);
+  if (!el) return;
+  var get = function(k) { var m = text.match(new RegExp(k + ":\\s*([^\n]+)", "i")); return m ? m[1].trim() : "\u2014"; };
+  var getBlock = function(k) { var m = text.match(new RegExp(k + ":\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:|$)", "i")); return m ? m[1].trim() : "\u2014"; };
+  el.innerHTML = '<div class="block-header"><div class="block-title">' + title + ' <span class="block-badge ' + bc + '">' + badge + '</span></div></div>' +
+    '<div class="brief-grid">' +
+    '<div class="brief-card"><div class="bc-label">Format</div><div class="bc-value orange">' + get("FORMAT") + '</div></div>' +
+    '<div class="brief-card"><div class="bc-label">Duration</div><div class="bc-value orange">' + get("DURATION") + '</div></div>' +
+    '<div class="brief-card"><div class="bc-label">Hook style</div><div class="bc-value">' + get("HOOK") + '</div></div>' +
+    '<div class="brief-card"><div class="bc-label">Music vibe</div><div class="bc-value">' + get("MUSIC") + '</div></div>' +
+    '<div class="brief-card full"><div class="bc-label">Visual style</div><div class="bc-value">' + get("VISUAL") + '</div></div>' +
+    '<div class="brief-card full"><div class="bc-label">Strategy</div><div class="bc-value">' + getBlock("STRATEGY") + '</div></div>' +
+    '</div>';
+}
+
+function renderShotsInto(containerId, text) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  var shots = [];
+  var rx = /SHOT\s*(\d+)[:\s]*\[([^\]]*)\][:\s]*([\s\S]*?)(?=SHOT\s*\d+|$)/gi;
+  var m;
+  while ((m = rx.exec(text)) !== null) {
+    var body = m[3].trim();
+    var getLine = function(key, b) {
+      var lm = b.match(new RegExp(key + "[:\\s]*([^\n]+)", "i"));
+      return lm ? lm[1].trim() : "";
+    };
+    shots.push({
+      num:      m[1],
+      time:     m[2],
+      visual:   getLine("VISUAL", body),
+      onscreen: getLine("ON.?SCREEN(?:\\s+TEXT)?", body),
+      action:   getLine("ACTION", body)
+    });
+  }
+  if (!shots.length) {
+    container.innerHTML = '<div class="block-body">' + text + '</div>';
+    return;
+  }
+  var imgSrc = document.getElementById("designImg").src;
+  var html = '<div class="storyboard">';
+  shots.forEach(function(s) {
+    html += '<div class="shot">' +
+      '<div class="shot-screen">' +
+      (imgSrc ? '<img src="' + imgSrc + '" alt="design">' : '<div style="width:100%;height:100%;background:var(--surface3)"></div>') +
+      '<div class="shot-overlay">' +
+      '<span class="shot-time">' + s.time + '</span>' +
+      (s.onscreen ? '<span class="shot-text-overlay">' + s.onscreen + '</span>' : '') +
+      '</div></div>' +
+      '<div class="shot-info"><div class="shot-num">Shot ' + s.num + '</div>' +
+      '<div class="shot-desc">' + s.visual + '</div>' +
+      (s.action ? '<div class="shot-action">' + s.action + '</div>' : '') +
+      '</div></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function fillStoryboards(id, title, badge, bc, textA, textB) {
+  var el = document.getElementById("block-" + id);
+  if (!el) return;
+  el.innerHTML = '<div class="block-header"><div class="block-title">' + title + ' <span class="block-badge ' + bc + '">' + badge + '</span></div>' +
+    '<div class="block-actions"><button class="copy-btn" id="copy-' + id + '">Copy all</button></div></div>' +
+    '<div class="tabs">' +
+    '<div class="tab active" id="tab-btn-a" onclick="switchSBTab(\'a\')">Version A \u2014 Product showcase</div>' +
+    '<div class="tab" id="tab-btn-b" onclick="switchSBTab(\'b\')">Version B \u2014 Trend participation</div>' +
+    '</div>' +
+    '<div id="tab-sb-a"><div id="sb-a"></div></div>' +
+    '<div id="tab-sb-b" style="display:none"><div id="sb-b"></div></div>';
+  document.getElementById("copy-" + id).onclick = function() { copyText(textA + "\n\n" + textB, "copy-" + id); };
+  renderShotsInto("sb-a", textA);
+  renderShotsInto("sb-b", textB);
+}
+
+function switchSBTab(v) {
+  document.getElementById("tab-sb-a").style.display = v === "a" ? "block" : "none";
+  document.getElementById("tab-sb-b").style.display = v === "b" ? "block" : "none";
+  document.getElementById("tab-btn-a").className = "tab" + (v === "a" ? " active" : "");
+  document.getElementById("tab-btn-b").className = "tab" + (v === "b" ? " active" : "");
+}
+
+function fillTabbed(id, title, badge, bc, textOverlay, voiceover) {
+  var el = document.getElementById("block-" + id);
+  if (!el) return;
+  el.innerHTML = '<div class="block-header"><div class="block-title">' + title + ' <span class="block-badge ' + bc + '">' + badge + '</span></div></div>' +
+    '<div class="tabs">' +
+    '<div class="tab active" id="sc-tab-ov" onclick="switchScriptTab(\'ov\')">Text overlays</div>' +
+    '<div class="tab" id="sc-tab-vo" onclick="switchScriptTab(\'vo\')">Voiceover script</div>' +
+    '</div>' +
+    '<div id="sc-panel-ov" style="padding:16px">' +
+    '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="copy-btn" id="copy-ov">Copy</button></div>' +
+    '<div class="block-body" style="padding:0" id="c-ov">' + textOverlay + '</div></div>' +
+    '<div id="sc-panel-vo" style="display:none;padding:16px">' +
+    '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="copy-btn" id="copy-vo">Copy for ElevenLabs</button></div>' +
+    '<div class="block-body" style="padding:0" id="c-vo">' + voiceover + '</div></div>';
+  document.getElementById("copy-ov").onclick = function() { copyText(document.getElementById("c-ov").textContent, "copy-ov"); };
+  document.getElementById("copy-vo").onclick = function() { copyText(document.getElementById("c-vo").textContent, "copy-vo"); };
+}
+
+function switchScriptTab(v) {
+  document.getElementById("sc-panel-ov").style.display = v === "ov" ? "block" : "none";
+  document.getElementById("sc-panel-vo").style.display = v === "vo" ? "block" : "none";
+  document.getElementById("sc-tab-ov").className = "tab" + (v === "ov" ? " active" : "");
+  document.getElementById("sc-tab-vo").className = "tab" + (v === "vo" ? " active" : "");
+}
+
+async function runVideoPipeline() {
+  if (!pipelineData || !designBase64) return;
+  var d = pipelineData;
+  var btn = document.getElementById("runBtn");
+  btn.disabled = true;
+  btn.textContent = "Running...";
+  document.getElementById("outputArea").innerHTML = "";
+  [0,1,2,3,4].forEach(function(i){ setStep(i, ""); });
+  setProgress(0);
+  document.getElementById("topStatus").textContent = "Generating video package...";
+  videoResult = {};
+
+  var base = 'You are a social media video strategist for Kultforge, a Dutch print-on-demand merch brand. Bold streetwear, black and orange, targeting 18-35 internet-native buyers. The brand moves fast.\n\nTrend: "' + d.trend + '"\nProduct: ' + d.product + '\nPrice: ' + d.price + '\nAct window: ' + d.window + '\nSource: ' + (d.source || "Unknown");
+
+  try {
+    // Step 1 — Video brief
+    setStep(0, "running");
+    addLoading("brief", "Video brief", "Step 1", "bb-orange");
+    setProgress(8);
+    var r1 = await callClaude([buildImageMsg(
+      base + '\n\nLook at this product design. Write a video brief for a faceless TikTok/Instagram product showcase.\n\nRespond in EXACTLY this format:\nFORMAT: 9:16 vertical, TikTok/Reels\nDURATION: [recommend 8-15s or 25-35s and why]\nHOOK: [opening hook style]\nMUSIC: [music vibe and tempo — no specific song names]\nVISUAL: [overall visual treatment]\nSTRATEGY: [2-3 sentences on why this approach fits this trend and audience]'
+    )], 300);
+    fillBrief("brief", "Video brief", "Step 1", "bb-orange", r1);
+    setStep(0, "done");
+    setProgress(22);
+    videoResult.brief = r1;
+
+    // Step 2 — Storyboards A + B
+    setStep(1, "running");
+    addLoading("storyboard", "Storyboards", "Step 2", "bb-orange");
+    setProgress(32);
+    var r2 = await callClaude([buildImageMsg(
+      base + '\n\nCreate TWO storyboard variants using this brief:\n' + r1 + '\n\n' +
+      'VARIANT A - PRODUCT SHOWCASE\n' +
+      'Faceless, design-forward, merch is the hero. Goal: convert viewers into buyers.\n' +
+      'Write 5-6 shots. For each use EXACTLY:\n' +
+      'SHOT N: [start - end]\nVISUAL: [what appears]\nON-SCREEN TEXT: [exact overlay words]\nACTION: [CapCut effect]\n\n' +
+      'VARIANT B - TREND PARTICIPATION\n' +
+      'Hooks into the trend first, reveals product second. Goal: build followers and go viral.\n' +
+      'Write 5-6 shots. For each use EXACTLY:\n' +
+      'SHOT N: [start - end]\nVISUAL: [what appears]\nON-SCREEN TEXT: [exact overlay words]\nACTION: [CapCut effect]'
+    )], 900);
+    var varBIdx = r2.indexOf("VARIANT B");
+    rawR2a = varBIdx > -1 ? r2.slice(0, varBIdx).replace(/VARIANT A[^\n]*\n/, "").trim() : r2;
+    rawR2b = varBIdx > -1 ? r2.slice(varBIdx).replace(/VARIANT B[^\n]*\n/, "").trim() : "";
+    fillStoryboards("storyboard", "Storyboards", "Step 2", "bb-orange", rawR2a, rawR2b);
+    setStep(1, "done");
+    setProgress(52);
+    videoResult.storyboard = r2;
+
+    // Steps 3 & 4 — Scripts
+    setStep(2, "running");
+    setStep(3, "running");
+    addLoading("scripts", "Text overlay + Voiceover scripts", "Steps 3 & 4", "bb-purple");
+    setProgress(62);
+    var r3 = await callClaude([buildTextMsg(
+      base + '\n\nWrite two script versions based on this storyboard (Variant A):\n' + rawR2a + '\n\n' +
+      'VERSION A - TEXT OVERLAYS ONLY\n' +
+      'Exact text for each shot, numbered, with timing. Max 6 words per overlay. Format:\n' +
+      'Shot 1 [0s-Xs]: "TEXT"\nShot 2 [Xs-Xs]: "TEXT"\n\n' +
+      'VERSION B - VOICEOVER SCRIPT\n' +
+      'Continuous spoken script for ElevenLabs. 8-15 seconds max. No filler words. Hook immediately. Add [PAUSE] for pauses. Plain text only.'
+    )], 500);
+    var splitIdx = r3.indexOf("VERSION B");
+    var overlayText   = splitIdx > -1 ? r3.slice(0, splitIdx).replace(/VERSION A[^\n]*\n/, "").trim() : r3;
+    var voiceoverText = splitIdx > -1 ? r3.slice(splitIdx).replace(/VERSION B[^\n]*\n/, "").trim() : "";
+    fillTabbed("scripts", "Scripts", "Steps 3 & 4", "bb-purple", overlayText, voiceoverText);
+    setStep(2, "done");
+    setStep(3, "done");
+    setProgress(82);
+    videoResult.scripts = r3;
+
+    // Step 5 — CapCut instructions
+    setStep(4, "running");
+    addLoading("capcut", "CapCut instructions", "Step 5", "bb-green");
+    setProgress(90);
+    var r4 = await callClaude([buildTextMsg(
+      base + '\n\nWrite numbered step-by-step CapCut mobile instructions to produce this video. Assume a complete beginner.\n\n' +
+      'Storyboard (Variant A):\n' + rawR2a + '\n\n' +
+      'Text overlays:\n' + overlayText + '\n\n' +
+      'Cover: new project setup, importing the design image, setting duration per shot, adding and styling text overlays (specify font, size, color, animation matching bold streetwear aesthetic), transitions between shots, adding music/sound, aspect ratio 9:16, and how to export for TikTok vs Instagram Reels. Number every step. Beginner-friendly but specific.'
+    )], 700);
+    fillText("capcut", "CapCut instructions", "Step 5", "bb-green", r4);
+    setStep(4, "done");
+    setProgress(100);
+    videoResult.capcut = r4;
+
+    // Download block
+    var area = document.getElementById("outputArea");
+    var dlBlock = document.createElement("div");
+    dlBlock.className = "block";
+    dlBlock.style.borderColor = "var(--orange)";
+    dlBlock.innerHTML = '<div class="block-header"><div class="block-title">Video package complete <span class="block-badge bb-orange">Ready to produce</span></div></div>' +
+      '<div style="padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.6;flex:1;min-width:200px">Open CapCut and follow the instructions. Download the full package as a reference file.</div>' +
+      '<button onclick="downloadVideoPackage()" style="background:var(--orange);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap">Download video package</button>' +
+      '</div>';
+    area.appendChild(dlBlock);
+    dlBlock.scrollIntoView({behavior:"smooth", block:"end"});
+
+    document.getElementById("topStatus").textContent = "Done — open CapCut and follow the instructions";
+    btn.disabled = false;
+    btn.textContent = "Run again";
+
+  } catch(e) {
+    document.getElementById("topStatus").textContent = "Error: " + e.message;
+    [0,1,2,3,4].forEach(function(i) {
+      if (document.getElementById("si-" + i) && document.getElementById("si-" + i).classList.contains("running")) setStep(i, "error");
+    });
+    btn.disabled = false;
+    btn.textContent = "Try again";
+  }
+}
+
+function downloadVideoPackage() {
+  var d = pipelineData;
+  var txt = [
+    "================================================================",
+    "KULTFORGE VIDEO PACKAGE",
+    "================================================================",
+    "Trend: " + d.trend,
+    "Product: " + d.product,
+    "Generated: " + new Date().toLocaleString("nl-NL"),
+    "",
+    "================================================================",
+    "STEP 1 - VIDEO BRIEF",
+    "================================================================",
+    videoResult.brief || "",
+    "",
+    "================================================================",
+    "STEP 2 - STORYBOARDS",
+    "================================================================",
+    "--- VARIANT A: PRODUCT SHOWCASE ---",
+    rawR2a,
+    "",
+    "--- VARIANT B: TREND PARTICIPATION ---",
+    rawR2b,
+    "",
+    "================================================================",
+    "STEPS 3 & 4 - SCRIPTS",
+    "================================================================",
+    videoResult.scripts || "",
+    "",
+    "================================================================",
+    "STEP 5 - CAPCUT INSTRUCTIONS",
+    "================================================================",
+    videoResult.capcut || "",
+    "",
+    "================================================================",
+    "ORIGINAL PIPELINE DATA",
+    "================================================================",
+    d.rawText || ""
+  ].join("\n");
+
+  var blob = new Blob([txt], {type: "text/plain"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  var safe = d.trend.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+  a.href = url;
+  a.download = "kultforge-video-" + safe + ".txt";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+<script>document.getElementById("nav-video").classList.add("active");</script>
+</body>
+</html>
